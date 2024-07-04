@@ -1,64 +1,73 @@
 package Service;
 
 import DAL.DatabaseConnection;
-import java.sql.Connection;
 import Model.ModelUser;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.DecimalFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
-
+import java.text.DecimalFormat;
 
 public class ServiceUser {
     private final Connection con;
-    
-   public ServiceUser() {
-       con = DatabaseConnection.getInstance().getConnection();
+    private final Map<String, String> verificationCodes;
+
+    public ServiceUser() {
+        con = DatabaseConnection.getInstance().getConnection();
+        verificationCodes = new HashMap<>();
     }
 
-    public void insertUser(ModelUser user) throws SQLException {
-        String query = "INSERT INTO [user] (UserName, Email, [Password], VerifyCode) OUTPUT INSERTED.UserID VALUES (?, ?, ?, ?)";
+    public void registerUser(ModelUser user) throws SQLException {
+        if (checkDuplicateUser(user.getUserName()) || checkDuplicateEmail(user.getEmail())) {
+            throw new SQLException("Username or Email already exists.");
+        }
+
+        String verificationCode = generateVerificationCode();
+        verificationCodes.put(user.getEmail(), verificationCode);
+        sendVerificationEmail(user.getEmail(), verificationCode);
+    }
+
+    public boolean verifyUser(ModelUser user, String verificationCode) throws SQLException {
+        String storedCode = verificationCodes.get(user.getEmail());
+
+        if (storedCode != null && storedCode.equals(verificationCode)) {
+            insertUserToAccount(user);
+            verificationCodes.remove(user.getEmail());
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+
+    private void insertUserToAccount(ModelUser user) throws SQLException {
+        String query = "INSERT INTO Account (UserName, Email, Password) OUTPUT INSERTED.MaQuanTriVien VALUES (?, ?, ?)";
         try (PreparedStatement p = con.prepareStatement(query)) {
-            String code = generateVerifyCode();
             p.setString(1, user.getUserName());
             p.setString(2, user.getEmail());
             p.setString(3, user.getPassword());
-            p.setString(4, code);
-            ResultSet r = p.executeQuery();
-            if (r.next()) {
-                int userID = r.getInt(1);
-                user.setUserID(userID);
-                user.setVerifyCode(code);
+            try (ResultSet r = p.executeQuery()) {
+                if (r.next()) {
+                    int userID = r.getInt(1);
+                    user.setUserID(userID);
+                }
             }
-            r.close();
         }
     }
 
-    private String generateVerifyCode() throws SQLException {
+    private String generateVerificationCode() {
         DecimalFormat df = new DecimalFormat("000000");
         Random ran = new Random();
-        String code = df.format(ran.nextInt(1000000));  // Random from 0 to 999999
-        while (checkDuplicateCode(code)) {
-            code = df.format(ran.nextInt(1000000));
-        }
-        return code;
+        return df.format(ran.nextInt(1000000));  // Random từ 0 đến 999999
     }
 
-    private boolean checkDuplicateCode(String code) throws SQLException {
-        String query = "SELECT UserID FROM [user] WHERE VerifyCode=? FETCH FIRST 1 ROWS ONLY";
+    public boolean checkDuplicateUser(String userName) throws SQLException {
+        String query = "SELECT TOP 1 MaQuanTriVien FROM Account WHERE UserName = ?";
         try (PreparedStatement p = con.prepareStatement(query)) {
-            p.setString(1, code);
-            try (ResultSet r = p.executeQuery()) {
-                return r.next();
-            }
-        }
-    }
-
-    public boolean checkDuplicateUser(String user) throws SQLException {
-        String query = "SELECT UserID FROM [user] WHERE UserName=? AND [Status]='Verified' FETCH FIRST 1 ROWS ONLY";
-        try (PreparedStatement p = con.prepareStatement(query)) {
-            p.setString(1, user);
+            p.setString(1, userName);
             try (ResultSet r = p.executeQuery()) {
                 return r.next();
             }
@@ -66,7 +75,7 @@ public class ServiceUser {
     }
 
     public boolean checkDuplicateEmail(String email) throws SQLException {
-        String query = "SELECT UserID FROM [user] WHERE Email=? AND [Status]='Verified' FETCH FIRST 1 ROWS ONLY";
+        String query = "SELECT TOP 1 MaQuanTriVien FROM Account WHERE Email = ?";
         try (PreparedStatement p = con.prepareStatement(query)) {
             p.setString(1, email);
             try (ResultSet r = p.executeQuery()) {
@@ -75,22 +84,8 @@ public class ServiceUser {
         }
     }
 
-    public void doneVerify(int userID) throws SQLException {
-        String query = "UPDATE [user] SET VerifyCode='', [Status]='Verified' WHERE UserID=? FETCH FIRST 1 ROWS ONLY";
-        try (PreparedStatement p = con.prepareStatement(query)) {
-            p.setInt(1, userID);
-            p.executeUpdate();
-        }
-    }
-
-    public boolean verifyCodeWithUser(int userID, String code) throws SQLException {
-        String query = "SELECT UserID FROM [user] WHERE UserID=? AND VerifyCode=? FETCH FIRST 1 ROWS ONLY";
-        try (PreparedStatement p = con.prepareStatement(query)) {
-            p.setInt(1, userID);
-            p.setString(2, code);
-            try (ResultSet r = p.executeQuery()) {
-                return r.next();
-            }
-        }
+    private void sendVerificationEmail(String email, String code) {
+        ServiceEmail serviceEmail = new ServiceEmail();
+        serviceEmail.sendVerificationEmail(email, code);
     }
 }

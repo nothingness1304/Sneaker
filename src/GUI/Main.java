@@ -2,6 +2,7 @@ package GUI;
 
 import DAL.DatabaseConnection;
 import Model.ModelUser;
+import Service.ServiceUser;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.SQLException;
@@ -25,11 +26,14 @@ public class Main extends javax.swing.JFrame {
    private final double coverSize=40;
    private final double loginSize=60;
    private final DecimalFormat df = new DecimalFormat("##0.###");
+   private ServiceUser service;
+   
     public Main() {
         initComponents();
         init();
     }
     private void init(){
+        service = new ServiceUser();
         layout = new MigLayout("fill, insets 0");
         cover = new PanelCover();
         loading = new PanelLoading();
@@ -102,14 +106,49 @@ public class Main extends javax.swing.JFrame {
                if(!animator.isRunning()){
                    animator.start();
                }
-            }
-            
+            }       
         });
+        verifyCode.addEventButtonOK(new ActionListener() {
+    @Override
+    public void actionPerformed(ActionEvent ae) {
+        String inputCode = verifyCode.getInputCode();
+        ModelUser user = loginandregister.getUser();
+        boolean isVerified;
+        try {
+            isVerified = service.verifyUser(user, inputCode);
+            if (isVerified) {
+                showMessage(Message.MessageType.SUCCESS, "Verification successful! You can now log in.");
+                verifyCode.setVisible(false);  // Ẩn panel verify code
+            } else {
+                showMessage(Message.MessageType.ERROR, "Incorrect verification code. Please try again.");
+            }
+        } catch (SQLException e) {
+            showMessage(Message.MessageType.ERROR, "Error verifying user: " + e.getMessage());
+        }
+    }
+});
+
     }
     private void register(){
         ModelUser user = loginandregister.getUser();
-        //loading.setVisible(true);
-        showMessage(Message.MessageType.SUCCESS, "Test Message");
+        loading.setVisible(true);  // Hiển thị panel loading
+    new Thread(() -> {
+        try {
+            if (service.checkDuplicateUser(user.getUserName()) || service.checkDuplicateEmail(user.getEmail())) {
+                showMessage(Message.MessageType.ERROR, "Username or Email already exists.");
+            } else {
+                service.registerUser(user);  // Đăng ký người dùng và gửi mã xác minh
+                showMessage(Message.MessageType.SUCCESS, "Please check your email for verification code.");
+                // Sau khi đăng ký xong, chuyển đến panel verify code
+                loading.setVisible(false);  // Ẩn panel loading
+                verifyCode.setVisible(true);
+            }
+        } catch (SQLException e) {
+            showMessage(Message.MessageType.ERROR, "Error registering user: " + e.getMessage());
+        } finally {
+            loading.setVisible(false);  // Đảm bảo rằng panel loading được ẩn đi
+        }
+    }).start();
     }
     
     private void showMessage(Message.MessageType messageType, String message){

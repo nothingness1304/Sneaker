@@ -10,7 +10,7 @@ import java.awt.event.MouseAdapter;
 
 public class PanelVerifyCode extends javax.swing.JPanel {
 
-  
+    private String email;
     public PanelVerifyCode() {
         initComponents();
         setOpaque(false);
@@ -143,6 +143,7 @@ public class PanelVerifyCode extends javax.swing.JPanel {
         public String getInputCode(){
             return txtCode.getText().trim();
         }
+              
         public void addEventButtonOK (ActionListener event){
             cmdOK.addActionListener(event);
         }
@@ -155,4 +156,5 @@ public class PanelVerifyCode extends javax.swing.JPanel {
     private Swing.PanelRound panelRound1;
     private Swing.MyTextField txtCode;
     // End of variables declaration//GEN-END:variables
+
 }
