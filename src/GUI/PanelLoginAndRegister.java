@@ -23,10 +23,10 @@ public class PanelLoginAndRegister extends javax.swing.JLayeredPane {
     }
     
 
-    public PanelLoginAndRegister(ActionListener eventRegister) {
+    public PanelLoginAndRegister(ActionListener eventRegister, ActionListener eventLogin) {
         initComponents();
         initRegister(eventRegister);
-        initLogin();
+        initLogin(eventLogin);
         login.setVisible(false);
         register.setVisible(true);
     }
@@ -64,7 +64,7 @@ public class PanelLoginAndRegister extends javax.swing.JLayeredPane {
             }          
         });
     }
-    private void initLogin(){
+    private void initLogin(ActionListener eventLogin){
         login.setLayout(new MigLayout("wrap","push[center]push","push[]25[]10[]10[]push"));
         JLabel label = new JLabel("Sign In");
         label.setFont(new Font("sansserif",1,30));
@@ -89,6 +89,16 @@ public class PanelLoginAndRegister extends javax.swing.JLayeredPane {
         Button cmd = new Button();
         cmd.setBackground(new Color(65, 165, 235));
         cmd.setForeground(new Color(250, 250, 250));
+        cmd.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            String email = txtEmail.getText().trim();
+            String password = String.valueOf(txtPass.getPassword());
+            user = new ModelUser(0, "", email, password);
+            // Gọi eventLogin để xử lý đăng nhập
+            eventLogin.actionPerformed(e);
+        }
+    });
         cmd.setText("Sign In");
         login.add(cmd, "w 40%, h 40");      
     }

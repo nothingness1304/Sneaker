@@ -8,6 +8,7 @@ import java.awt.event.ActionListener;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import javax.swing.JLayeredPane;
+import javax.swing.SwingUtilities;
 import net.miginfocom.swing.MigLayout;
 import org.jdesktop.animation.timing.Animator;
 import org.jdesktop.animation.timing.TimingTarget;
@@ -44,7 +45,13 @@ public class Main extends javax.swing.JFrame {
                 register ();
             }        
         };
-        loginandregister = new PanelLoginAndRegister(eventRegister);
+        ActionListener eventLogin = new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                login();
+            }
+        };
+        loginandregister = new PanelLoginAndRegister(eventRegister, eventLogin);
         TimingTarget target = new TimingTargetAdapter(){
             @Override
             public void timingEvent(float fraction) {
@@ -151,6 +158,46 @@ public class Main extends javax.swing.JFrame {
     }).start();
     }
     
+    private void login() {
+    ModelUser user = loginandregister.getUser();
+    if (user == null) {
+        showMessage(Message.MessageType.ERROR, "User object is null.");
+        return;
+    }
+    String email = user.getEmail();
+    String password = user.getPassword();
+    
+    if (email == null || email.isEmpty() || password == null || password.isEmpty()) {
+        showMessage(Message.MessageType.ERROR, "Email and Password incorrect.");
+        return;
+    }
+    
+    loading.setVisible(true);
+    new Thread(() -> {
+        try {
+            if (service.loginUser(email, password)) {
+                SwingUtilities.invokeLater(() -> {
+                    showMessage(Message.MessageType.SUCCESS, "Login successful!");
+                    loading.setVisible(false);
+                    new DashBoard().setVisible(true);
+                    dispose();
+                });
+            } else {
+                SwingUtilities.invokeLater(() -> {
+                    showMessage(Message.MessageType.ERROR, "Incorrect email or password. Please try again.");
+                    loading.setVisible(false); // Ẩn loading khi nhập sai và thử lại
+                });
+            }
+        } catch (SQLException e) {
+            SwingUtilities.invokeLater(() -> {
+                showMessage(Message.MessageType.ERROR, "Error logging in: " + e.getMessage());
+                loading.setVisible(false);
+            });
+        }
+    }).start();
+}
+
+    
     private void showMessage(Message.MessageType messageType, String message){
         Message ms = new Message();
         ms.showMessage(messageType, message);
@@ -217,6 +264,7 @@ public class Main extends javax.swing.JFrame {
 
         bg.setBackground(new java.awt.Color(255, 255, 255));
         bg.setOpaque(true);
+        bg.setPreferredSize(new java.awt.Dimension(933, 537));
 
         javax.swing.GroupLayout bgLayout = new javax.swing.GroupLayout(bg);
         bg.setLayout(bgLayout);
@@ -233,11 +281,11 @@ public class Main extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(bg)
+            .addComponent(bg, javax.swing.GroupLayout.DEFAULT_SIZE, 400, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(bg)
+            .addComponent(bg, javax.swing.GroupLayout.DEFAULT_SIZE, 300, Short.MAX_VALUE)
         );
 
         pack();

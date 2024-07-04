@@ -88,4 +88,16 @@ public class ServiceUser {
         ServiceEmail serviceEmail = new ServiceEmail();
         serviceEmail.sendVerificationEmail(email, code);
     }
+    
+    public boolean loginUser(String email, String password) throws SQLException {
+        String query = "SELECT * FROM Account WHERE Email = ? AND Password = ?";
+        try (PreparedStatement p = con.prepareStatement(query)) {
+            p.setString(1, email);
+            p.setString(2, password);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
 }
+
