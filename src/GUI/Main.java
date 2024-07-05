@@ -8,7 +8,6 @@ import java.awt.event.ActionListener;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import javax.swing.JLayeredPane;
-import javax.swing.SwingUtilities;
 import net.miginfocom.swing.MigLayout;
 import org.jdesktop.animation.timing.Animator;
 import org.jdesktop.animation.timing.TimingTarget;
@@ -159,8 +158,8 @@ public class Main extends javax.swing.JFrame {
     }
     
     private void login() {
-    ModelUser user = loginandregister.getUser();
-    if (user == null) {
+            ModelUser user = loginandregister.getUser();
+        if (user == null) {
         showMessage(Message.MessageType.ERROR, "User object is null.");
         return;
     }
@@ -172,31 +171,25 @@ public class Main extends javax.swing.JFrame {
         return;
     }
     
-    loading.setVisible(true);
-    new Thread(() -> {
-        try {
-            if (service.loginUser(email, password)) {
-                SwingUtilities.invokeLater(() -> {
+        loading.setVisible(true);
+        new Thread(() -> {
+            try {
+                if (service.loginUser(email, password)) {
                     showMessage(Message.MessageType.SUCCESS, "Login successful!");
                     loading.setVisible(false);
                     new DashBoard().setVisible(true);
-                    dispose();
-                });
-            } else {
-                SwingUtilities.invokeLater(() -> {
+                    this.dispose();
+                } else {
                     showMessage(Message.MessageType.ERROR, "Incorrect email or password. Please try again.");
-                    loading.setVisible(false); // Ẩn loading khi nhập sai và thử lại
-                });
-            }
-        } catch (SQLException e) {
-            SwingUtilities.invokeLater(() -> {
+                    loading.setVisible(true);
+                }
+            } catch (SQLException e) {
                 showMessage(Message.MessageType.ERROR, "Error logging in: " + e.getMessage());
+            } finally {
                 loading.setVisible(false);
-            });
-        }
-    }).start();
-}
-
+            }
+        }).start();
+    }
     
     private void showMessage(Message.MessageType messageType, String message){
         Message ms = new Message();
