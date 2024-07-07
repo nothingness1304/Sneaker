@@ -9,10 +9,14 @@ import java.awt.Cursor;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
 import net.miginfocom.swing.MigLayout;
 
 
@@ -22,6 +26,16 @@ public class Menu extends javax.swing.JPanel {
     private JPanel panelMenu;
     private JButton cmdMenu;
     private JButton cmdLogout;
+    private Header header;
+    private EventMenuSelected event;
+
+    public EventMenuSelected getEvent() {
+        return event;
+    }
+
+    public void setEvent(EventMenuSelected event) {
+        this.event = event;
+    }
     public Menu() {
         initComponents();
         setOpaque(false);
@@ -29,15 +43,32 @@ public class Menu extends javax.swing.JPanel {
     }
     
     private void init(){
-        setLayout(new MigLayout("wrap, fillx, insets 0", "[fill]", "50[]0"));
+        setLayout(new MigLayout("wrap, fillx, insets 0", "[fill]", "5[]0"));
         panelMenu = new JPanel();
+        header = new Header();
         createButtonMenu();
+        createButtonLogout();
         panelMenu.setOpaque(false);
-        layout = new MigLayout("fillx, wrap", "0[fill]0", "0[]0");
+        layout = new MigLayout("fillx, wrap", "0[fill]0", "0[]3[]00");
         panelMenu.setLayout(layout);
         add(cmdMenu, "pos 1al 0al 100% 50");
+        add(cmdLogout, "pos 1al 1al 100% 100, height 60!");
+        add(header);
         add(panelMenu);
+        
+        cmdLogout.addActionListener(new ActionListener() {
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // Tạo mới frame đăng nhập
+        Main loginFrame = new Main();
+        loginFrame.setVisible(true); // Hiển thị frame đăng nhập mới
+
+        // Đóng frame hiện tại (dashboard)
+        JFrame currentFrame = (JFrame) SwingUtilities.getWindowAncestor((Component) e.getSource());
+        currentFrame.dispose();
     }
+});
+}
     
     public void addMenu(ModelMenu menu) {
         MenuItem item = new MenuItem(menu.getIcon(), menu.getMenuName(), panelMenu.getComponentCount());
@@ -47,7 +78,7 @@ public class Menu extends javax.swing.JPanel {
                 clearMenu(index);
             }
         });
-        
+        item.addEvent(event);
         panelMenu.add(item);
     }
 
@@ -55,11 +86,22 @@ public class Menu extends javax.swing.JPanel {
     private void createButtonMenu() {
         cmdMenu = new JButton();
         cmdMenu.setContentAreaFilled(false);
-        cmdMenu.setFocusPainted(false); // Bỏ viền focus
-        cmdMenu.setBorderPainted(false); // Bỏ viền border
+        cmdMenu.setFocusPainted(false); 
         cmdMenu.setCursor(new Cursor(Cursor.HAND_CURSOR));
         cmdMenu.setIcon(new ImageIcon(getClass().getResource("/Icon/menu23.png")));
+        cmdMenu.setBorder(new EmptyBorder(5, 12, 5, 12));
     }
+    
+    private void createButtonLogout() {
+        cmdLogout = new JButton();
+        cmdLogout.setContentAreaFilled(false);
+        cmdLogout.setFocusPainted(false);
+        cmdLogout.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cmdLogout.setIcon(new ImageIcon(getClass().getResource("/Icon/logout25.png")));
+        cmdLogout.setBorder(new EmptyBorder(5, 12, 5, 12));
+    }
+    
+    
     
     @Override
     protected void paintComponent(Graphics grphcs) {
@@ -84,6 +126,9 @@ public class Menu extends javax.swing.JPanel {
         cmdMenu.addActionListener(event);
     }
     
+    public void setAlpha(float alpha) {
+        header.setAlpha(alpha);
+    }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

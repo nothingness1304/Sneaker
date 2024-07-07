@@ -10,14 +10,6 @@ CREATE TABLE Account (
     NgayTao DATETIME DEFAULT GETDATE()
 );
 
-CREATE TABLE TempUser (
-    MaQuanTriVien INT IDENTITY(1,1) PRIMARY KEY,
-    UserName VARCHAR(50) NOT NULL UNIQUE,
-    Password VARCHAR(255) NOT NULL,
-    Email VARCHAR(100) NOT NULL UNIQUE,
-	VerificationCode VARCHAR(255) NOT NULL,
-    NgayTao DATETIME DEFAULT GETDATE()
-);
 
 CREATE TABLE KhachHang (
     MaKhachHang INT IDENTITY(1,1) PRIMARY KEY,
@@ -155,67 +147,82 @@ ON DonHang
 INSTEAD OF INSERT
 AS
 BEGIN
+    DECLARE @MaKhachHang INT;
+    DECLARE @MaDonHang INT;
+    DECLARE @NgayDatHang DATETIME;
+    DECLARE @TrangThai NVARCHAR(20);
+    
     DECLARE @Ho NVARCHAR(50);
     DECLARE @Ten NVARCHAR(50);
     DECLARE @Email VARCHAR(100);
     DECLARE @SoDienThoai VARCHAR(20);
     DECLARE @DiaChi NVARCHAR(255);
-    DECLARE @TenSanPham VARCHAR(100);
-    DECLARE @SoLuong INT;
-    DECLARE @GiaDonVi DECIMAL(10, 2);
-    DECLARE @TrangThai VARCHAR(20);
 
-    DECLARE @MaKhachHang INT;
-    DECLARE @MaSanPham INT;
-    DECLARE @TongTien DECIMAL(10, 2);
-    DECLARE @MaDonHang INT;
-
+    -- Lấy thông tin từ inserted
     SELECT 
-        @Ho = KhachHang.Ho,
-        @Ten = KhachHang.Ten,
-        @Email = KhachHang.Email,
-        @SoDienThoai = KhachHang.SoDienThoai,
-        @DiaChi = KhachHang.DiaChi,
-        @TenSanPham = SanPham.TenSanPham,
-        @SoLuong = inserted.SoLuong,
-        @GiaDonVi = inserted.GiaDonVi,
-        @TrangThai = inserted.TrangThai
-    FROM inserted
-    LEFT JOIN KhachHang ON inserted.MaKhachHang = KhachHang.MaKhachHang
-    LEFT JOIN SanPham ON inserted.MaSanPham = SanPham.MaSanPham;
+        @NgayDatHang = i.NgayDatHang, 
+        @TrangThai = i.TrangThai,
+        @Ho = kh.Ho,
+        @Ten = kh.Ten,
+        @Email = kh.Email,
+        @SoDienThoai = kh.SoDienThoai,
+        @DiaChi = kh.DiaChi
+    FROM inserted i
+    LEFT JOIN KhachHang kh ON i.MaKhachHang = kh.MaKhachHang;
 
     -- Kiểm tra xem khách hàng đã tồn tại hay chưa
-    SELECT @MaKhachHang = MaKhachHang
-    FROM KhachHang
-    WHERE SoDienThoai = @SoDienThoai OR Email = @Email;
-
-    -- Nếu khách hàng chưa tồn tại, thêm mới
     IF @MaKhachHang IS NULL
     BEGIN
+        -- Nếu khách hàng chưa tồn tại, thêm mới
         INSERT INTO KhachHang (Ho, Ten, Email, SoDienThoai, DiaChi)
         VALUES (@Ho, @Ten, @Email, @SoDienThoai, @DiaChi);
         
         SET @MaKhachHang = SCOPE_IDENTITY(); -- Lấy ID của khách hàng vừa thêm
     END
-
-    -- Lấy ID của sản phẩm dựa trên tên sản phẩm
-    SELECT @MaSanPham = MaSanPham
-    FROM SanPham
-    WHERE TenSanPham = @TenSanPham;
-
-    -- Tính tổng tiền cho đơn hàng
-    SET @TongTien = @SoLuong * @GiaDonVi;
+    ELSE
+    BEGIN
+        -- Nếu khách hàng đã tồn tại, lấy MaKhachHang
+        SELECT @MaKhachHang = MaKhachHang
+        FROM KhachHang
+        WHERE Email = @Email;
+    END
 
     -- Thêm đơn hàng
     INSERT INTO DonHang (MaKhachHang, NgayDatHang, TongTien, TrangThai)
-    VALUES (@MaKhachHang, GETDATE(), @TongTien, @TrangThai);
+    SELECT @MaKhachHang, GETDATE(), 0, @TrangThai
+    FROM inserted;
 
     SET @MaDonHang = SCOPE_IDENTITY(); -- Lấy ID của đơn hàng vừa thêm
 
-    -- Thêm chi tiết đơn hàng
+    -- Thêm chi tiết đơn hàng và trừ số lượng sản phẩm, đồng thời tính tổng tiền
+    DECLARE @TongTien DECIMAL(10, 2);
+    SET @TongTien = 0;
+
     INSERT INTO ChiTietDonHang (MaDonHang, MaSanPham, SoLuong, GiaDonVi)
-    VALUES (@MaDonHang, @MaSanPham, @SoLuong, @GiaDonVi);
+    SELECT @MaDonHang, ct.MaSanPham, ct.SoLuong, sp.Gia
+    FROM ChiTietDonHang ct
+    JOIN SanPham sp ON ct.MaSanPham = sp.MaSanPham
+    JOIN inserted i ON ct.MaDonHang = i.MaDonHang;
+
+    -- Cập nhật số lượng sản phẩm và tính tổng tiền
+    UPDATE sp
+    SET sp.SoLuong = sp.SoLuong - ct.SoLuong
+    FROM SanPham sp
+    JOIN ChiTietDonHang ct ON sp.MaSanPham = ct.MaSanPham
+    WHERE ct.MaDonHang = @MaDonHang;
+
+    -- Tính tổng tiền của đơn hàng
+    SELECT @TongTien = SUM(ct.SoLuong * sp.Gia)
+    FROM ChiTietDonHang ct
+    JOIN SanPham sp ON ct.MaSanPham = sp.MaSanPham
+    WHERE ct.MaDonHang = @MaDonHang;
+
+    -- Cập nhật tổng tiền vào bảng DonHang
+    UPDATE DonHang
+    SET TongTien = @TongTien
+    WHERE MaDonHang = @MaDonHang;
 END;
+
 
 
 DROP TRIGGER trg_AddOrderWithCustomerCheck
